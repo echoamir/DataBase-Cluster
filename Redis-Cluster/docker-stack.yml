@@ -1,0 +1,107 @@
+services:
+  redis-node1:
+    image: redis:bookworm
+    hostname: redis-node1
+    environment:
+      - REDIS_REPLICATION_MODE=master
+      - REDIS_PASSWORD=amir123456789
+    volumes:
+      - redis-node1:/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == swarm-node1
+      restart_policy:
+        condition: on-failure
+    networks:
+      - cluster_net
+
+  
+  redis-node2:
+    image: redis:bookworm
+    hostname: redis-node2
+    command: redis-server --slaveof redis-node1 6379
+    environment:
+      - REDIS_REPLICATION_MODE=replica
+      - REDIS_MASTER_HOST=redis-node1
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_PASSWORD=amir123456789 
+      - REDIS_PASSWORD=amir123456789
+    volumes:
+      - redis-node2:/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == swarm-node2
+      restart_policy:
+        condition: on-failure
+    networks:
+      - cluster_net
+ 
+  
+  redis-node3:
+    image: redis:bookworm
+    hostname: redis-node3
+    command: redis-server --slaveof redis-node1 6379
+    environment:
+      - REDIS_REPLICATION_MODE=replica
+      - REDIS_MASTER_HOST=redis-node1
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_PASSWORD=amir123456789 
+      - REDIS_PASSWORD=amir123456789
+    volumes:
+      - redis-node2:/data
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.nodename == swarm-node3
+      restart_policy:
+        condition: on-failure
+    networks:
+      - cluster_net
+
+
+
+  redis-sentinel:
+    image: redis:bookworm
+    volumes:
+      - redis-sentinel:/data
+    networks:
+      - cluster_net
+    command: >
+      sh -c "touch /data/sentinel.conf
+      && echo 'port 26379' > /data/sentinel.conf
+      && echo 'sentinel monitor redis-cluster redis-node1 6379 2' >> /data/sentinel.conf
+      && echo 'sentinel down-after-milliseconds redis-cluster 5000' >> /data/sentinel.conf
+      && echo 'sentinel parallel-syncs redis-cluster 1' >> /data/sentinel.conf
+      && echo 'sentinel failover-timeout redis-cluster 5000' >> /data/sentinel.conf
+      && echo 'sentinel auth-pass redis-cluster amir123456789' >> /data/sentinel.conf
+      && echo 'sentinel resolve-hostnames yes' >> /data/sentinel.conf
+      && chmod 777 /data/sentinel.conf
+      && redis-server /data/sentinel.conf --sentinel"
+
+    deploy:
+      mode: replicated
+      replicas: 3
+      placement:
+        max_replicas_per_node: 1
+      restart_policy: 
+        condition: on-failure
+
+
+volumes:
+  redis-node1:
+  redis-node2:
+  redis-node3:
+  redis-sentinel:
+
+networks:
+  cluster_net:
+    external: false
+
