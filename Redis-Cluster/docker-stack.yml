@@ -104,4 +104,5 @@ volumes:
 networks:
   cluster_net:
     external: false
+    driver: overlay
 
