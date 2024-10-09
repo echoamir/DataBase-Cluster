@@ -1,0 +1,52 @@
+services:
+  mysql-master:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: amir123456789
+      MYSQL_DATABASE: mydb
+      MYSQL_REPLICATION_USER: repl_user
+      MYSQL_REPLICATION_PASSWORD: amir123456789
+      MYSQL_INITDB_SKIP_TZINFO: 1 
+    networks:
+      - web_net
+    volumes:
+      - master_data:/var/lib/mysql
+      - ./master.cnf:/etc/mysql/conf.d/master.cnf
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.state == swarm-node1
+    ports:
+      - 3306:3306
+
+  mysql-slave:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: amir123456789
+      MYSQL_REPLICATION_USER: repl_user
+      MYSQL_REPLICATION_PASSWORD: amir123456789
+      MYSQL_MASTER_HOST: mysql-master
+      MYSQL_MASTER_PORT: 3306
+      MYSQL_INITDB_SKIP_TZINFO: 1
+    networks:
+      - web_net
+    depends_on:
+      - mysql-master
+    volumes:
+      - slave_data:/var/lib/mysql
+      - ./master.cnf:/etc/mysql/conf.d/master.cnf
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - node.labels.state == swarm-node1
+
+networks:
+  web_net:
+    external: false
+    driver: overlay
+volumes:
+  master_data:
+  slave_data:
+
